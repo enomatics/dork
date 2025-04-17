@@ -5,9 +5,11 @@ import { RefObject } from "react";
 export default function CanvasContainer({
   canvasRef,
   containerRef,
+  onContextMenu,
 }: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   containerRef: RefObject<HTMLDivElement | null>;
+  onContextMenu: (e: React.MouseEvent<HTMLCanvasElement>) => void;
 }) {
   return (
     <div
