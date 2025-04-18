@@ -5,11 +5,11 @@ import { RefObject } from "react";
 export default function CanvasContainer({
   canvasRef,
   containerRef,
-  onContextMenu,
-}: {
+}: // onContextMenu,
+{
   canvasRef: RefObject<HTMLCanvasElement | null>;
   containerRef: RefObject<HTMLDivElement | null>;
-  onContextMenu: (e: React.MouseEvent<HTMLCanvasElement>) => void;
+  // onContextMenu: (e: React.MouseEvent<HTMLCanvasElement>) => void;
 }) {
   return (
     <div
@@ -26,13 +26,11 @@ export default function CanvasContainer({
         overflow: "hidden",
       }}
     >
-      <div
-        style={{
-          position: "relative",
-        }}
-      >
-        <canvas ref={canvasRef} className="border border-red-400" />
-      </div>
+      <canvas
+        ref={canvasRef}
+        // onContextMenu={onContextMenu}
+        className="border border-red-400 z-10"
+      />
     </div>
   );
 }

@@ -41,27 +41,41 @@ export default function Page() {
       backgroundColor: "#ffffff",
       selection: true,
       preserveObjectStacking: true,
-      stopContextMenu: false,
+      stopContextMenu: true,
+      fireRightClick: true,
     });
 
     // Add context menu handler
     initCanvas.on("mouse:down", (options) => {
-      console.log(options.e);
+      console.log(options.e as MouseEvent);
       console.log(options.target?.type);
+
+      const target = initCanvas.findTarget(options.e) as CanvasElement;
+
+      // If there's a target, make it active
+      if (target) {
+        initCanvas.setActiveObject(target);
+        initCanvas.requestRenderAll();
+      }
 
       if ((options.e as MouseEvent).button === 2) {
         // Right click
-        console.log("Fabric right click detected");
         options.e.preventDefault();
-        const pointer = initCanvas.getViewportPoint(options.e);
+
+        console.log("Fabric right click detected");
         setContextMenu({
           visible: true,
-          x: pointer.x,
-          y: pointer.y,
-          target: (initCanvas.findTarget(options.e) as CanvasElement) || null,
+          x: (options.e as MouseEvent).clientX,
+          y: (options.e as MouseEvent).clientY,
+          target: target || null,
         });
       }
     });
+
+    // Disable default context menu via DOM
+    initCanvas.upperCanvasEl.addEventListener("contextmenu", (e) =>
+      e.preventDefault()
+    );
 
     setCanvas(initCanvas);
 
@@ -69,6 +83,38 @@ export default function Page() {
       initCanvas.dispose();
     };
   }, []);
+
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      console.log("Context menu opening...");
+
+      // Get canvas position relative to viewport
+      const canvasRect = canvasRef.current?.getBoundingClientRect();
+      if (!canvasRect) return;
+
+      // Calculate position relative to canvas, accounting for scroll
+      const x = e.clientX - canvasRect.left + window.scrollX;
+      const y = e.clientY - canvasRect.top + window.scrollY;
+
+      setContextMenu({
+        visible: true,
+        x,
+        y,
+        target: canvas?.findTarget(e) || null,
+      });
+    };
+
+    const canvasEl = canvasRef.current;
+    if (canvasEl) {
+      canvasEl.addEventListener("contextmenu", handleContextMenu);
+    }
+
+    return () => {
+      if (canvasEl)
+        canvasEl.removeEventListener("contextmenu", handleContextMenu);
+    };
+  }, [canvas]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -86,7 +132,7 @@ export default function Page() {
   }, [canvas]);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = () => {
       if (contextMenu.visible) {
         setContextMenu((prev) => ({ ...prev, visible: false }));
       }
@@ -185,24 +231,33 @@ export default function Page() {
     canvas?.add(shape);
   };
 
-  // Right-click Context Menu
-  const handleCanvasRightClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    console.log("Right click event triggered");
-    e.preventDefault();
-    if (!canvas) {
-      console.log("Canvas not initialized");
-      return;
-    }
+  const handleLockObject = (obj: CanvasElement) => {
+    obj.set({
+      selectable: false,
+      lockMovementX: true,
+      lockMovementY: true,
+      lockRotation: true,
+      lockScalingFlip: true,
+      lockScalingX: true,
+      lockScalingY: true,
+      lockSkewingX: true,
+      lockSkewingY: true,
+      hasControls: false,
+    });
+  };
 
-    console.log("Canvas exists, getting pointer position");
-    const pointer = canvas.getViewportPoint(e.nativeEvent);
-    console.log("Pointer position:", pointer);
-
-    setContextMenu({
-      visible: true,
-      x: pointer.x,
-      y: pointer.y,
-      target: (canvas.findTarget(e.nativeEvent) as CanvasElement) || null,
+  const handleUnlockObject = (obj: CanvasElement) => {
+    obj.set({
+      selectable: !false,
+      lockMovementX: !true,
+      lockMovementY: !true,
+      lockRotation: !true,
+      lockScalingFlip: !true,
+      lockScalingX: !true,
+      lockScalingY: !true,
+      lockSkewingX: !true,
+      lockSkewingY: !true,
+      hasControls: !false,
     });
   };
 
@@ -212,7 +267,7 @@ export default function Page() {
       <div className="flex relative">
         <Sidebar />
         <CanvasContainer
-          onContextMenu={handleCanvasRightClick}
+          // onContextMenu={handleCanvasRightClick}
           canvasRef={canvasRef}
           containerRef={containerRef}
         />
@@ -220,6 +275,9 @@ export default function Page() {
         {contextMenu.visible && (
           <div
             style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "start",
               left: contextMenu.x,
               top: contextMenu.y,
               position: "absolute",
@@ -251,6 +309,32 @@ export default function Page() {
               }}
             >
               Delete object
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (canvas && contextMenu.target) {
+                  contextMenu.target.set({
+                    fill: "black",
+                  });
+                  canvas.requestRenderAll();
+                }
+              }}
+            >
+              To black
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (canvas && contextMenu.target) {
+                  const target = contextMenu.target;
+                  if (target.selectable) handleLockObject(target);
+                  else handleUnlockObject(target);
+                  canvas.requestRenderAll();
+                }
+              }}
+            >
+              {contextMenu.target?.selectable ? "Lock" : "Unlock"}
             </button>
           </div>
         )}
