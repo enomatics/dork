@@ -77,6 +77,59 @@ export default function Page() {
       e.preventDefault()
     );
 
+    const gridSize = 5;
+    const snapTreshold = 10;
+    const canvasCenter = {
+      x: initCanvas.getWidth() / 2,
+      y: initCanvas.getHeight() / 2,
+    };
+
+    initCanvas.on("object:moving", (e) => {
+      const obj = e.target;
+      if (!obj) return;
+
+      // Snap to grid
+      obj.set({
+        left: Math.round(obj.left! / gridSize) * gridSize,
+        top: Math.round(obj.top! / gridSize) * gridSize,
+      });
+
+      // Snapping to canvas center
+      const objCenter = obj.getCenterPoint();
+
+      const dx = Math.abs(objCenter.x - canvasCenter.x);
+      const dy = Math.abs(objCenter.y - canvasCenter.y);
+
+      if (dx < snapTreshold) {
+        obj.left = canvasCenter.x - obj.getScaledWidth() / 2;
+      }
+
+      if (dy < snapTreshold) {
+        obj.top = canvasCenter.y - obj.getScaledHeight() / 2;
+      }
+
+      // Snapping to other objects
+      initCanvas.getObjects().forEach((someObj) => {
+        if (someObj === obj) return;
+
+        const someObjCenter = someObj.getCenterPoint();
+
+        // Snap center-to-center
+        const objectCenterdx = Math.abs(objCenter.x - someObjCenter.x);
+        const objectCenterdy = Math.abs(objCenter.y - someObjCenter.y);
+
+        if (objectCenterdx < snapTreshold) {
+          obj.left = someObjCenter.x - obj.getScaledWidth() / 2;
+        }
+
+        if (objectCenterdy < snapTreshold) {
+          obj.top = someObjCenter.y - obj.getScaledHeight() / 2;
+        }
+      });
+
+      obj.setCoords();
+    });
+
     setCanvas(initCanvas);
 
     return () => {
@@ -187,28 +240,28 @@ export default function Page() {
         break;
       case "square":
         shape = new fabric.Rect({
-          height: 50,
-          width: 50,
+          height: 100,
+          width: 100,
           fill: currColor,
         });
         break;
       case "rectangle":
         shape = new fabric.Rect({
-          height: 50,
-          width: 75,
+          height: 100,
+          width: 150,
           fill: currColor,
         });
         break;
       case "triangle":
         shape = new fabric.Triangle({
-          height: 50,
-          width: 75,
+          height: 100,
+          width: 116,
           fill: currColor,
         });
         break;
       case "ellipse":
         shape = new fabric.Ellipse({
-          height: 50,
+          height: 100,
           width: 75,
           fill: currColor,
         });
