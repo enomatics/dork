@@ -77,8 +77,33 @@ export default function Page() {
       e.preventDefault()
     );
 
+    const guideLines: fabric.Line[] = [];
+
+    // Helper to draw guide lines
+    const drawGuideLine = (
+      canvas: fabric.Canvas,
+      coords: [number, number, number, number]
+    ) => {
+      const line = new fabric.Line(coords, {
+        stroke: "rgba(0, 122, 255, 0.6)",
+        strokeWidth: 1,
+        selectable: false,
+        evented: false,
+        excludeFromExport: true,
+      });
+
+      guideLines.push(line);
+      canvas.add(line);
+    };
+
+    // Helper to clear all guide lines
+    const clearGuidelnes = (canvas: fabric.Canvas) => {
+      guideLines.forEach((line) => canvas.remove(line));
+      guideLines.length = 0;
+    };
+
     const gridSize = 5;
-    const snapTreshold = 10;
+    const snapTreshold = 5;
     const canvasCenter = {
       x: initCanvas.getWidth() / 2,
       y: initCanvas.getHeight() / 2,
@@ -88,46 +113,180 @@ export default function Page() {
       const obj = e.target;
       if (!obj) return;
 
+      clearGuidelnes(initCanvas);
+
       // Snap to grid
       obj.set({
         left: Math.round(obj.left! / gridSize) * gridSize,
         top: Math.round(obj.top! / gridSize) * gridSize,
       });
 
-      // Snapping to canvas center
+      // Snap to canvas center
       const objCenter = obj.getCenterPoint();
+      const objBounds = obj.getBoundingRect();
 
       const dx = Math.abs(objCenter.x - canvasCenter.x);
       const dy = Math.abs(objCenter.y - canvasCenter.y);
 
       if (dx < snapTreshold) {
+        drawGuideLine(initCanvas, [
+          canvasCenter.x,
+          0,
+          canvasCenter.x,
+          initCanvas.getHeight(),
+        ]);
         obj.left = canvasCenter.x - obj.getScaledWidth() / 2;
       }
 
       if (dy < snapTreshold) {
+        drawGuideLine(initCanvas, [
+          0,
+          canvasCenter.y,
+          initCanvas.getWidth(),
+          canvasCenter.y,
+        ]);
         obj.top = canvasCenter.y - obj.getScaledHeight() / 2;
       }
 
-      // Snapping to other objects
-      initCanvas.getObjects().forEach((someObj) => {
-        if (someObj === obj) return;
+      // Snap to other objects
+      initCanvas.getObjects().forEach((other) => {
+        if (other === obj) return;
 
-        const someObjCenter = someObj.getCenterPoint();
+        const otherBounds = other.getBoundingRect();
+        const otherCenter = other.getCenterPoint();
 
         // Snap center-to-center
-        const objectCenterdx = Math.abs(objCenter.x - someObjCenter.x);
-        const objectCenterdy = Math.abs(objCenter.y - someObjCenter.y);
+        const objectCenterdx = Math.abs(objCenter.x - otherCenter.x);
+        const objectCenterdy = Math.abs(objCenter.y - otherCenter.y);
+        const objectdL = Math.abs(objBounds.left - otherBounds.left);
+        const objectdR = Math.abs(
+          objBounds.left +
+            objBounds.width -
+            (otherBounds.left + otherBounds.width)
+        );
 
         if (objectCenterdx < snapTreshold) {
-          obj.left = someObjCenter.x - obj.getScaledWidth() / 2;
+          drawGuideLine(initCanvas, [
+            otherCenter.x,
+            0,
+            otherCenter.x,
+            initCanvas.getHeight(),
+          ]);
+          obj.left = otherCenter.x - obj.getScaledWidth() / 2;
         }
 
         if (objectCenterdy < snapTreshold) {
-          obj.top = someObjCenter.y - obj.getScaledHeight() / 2;
+          drawGuideLine(initCanvas, [
+            0,
+            otherCenter.y,
+            initCanvas.getWidth(),
+            otherCenter.y,
+          ]);
+          obj.top = otherCenter.y - obj.getScaledHeight() / 2;
+        }
+
+        // Snap left-to-left
+        if (objectdL < snapTreshold) {
+          drawGuideLine(initCanvas, [
+            otherBounds.left,
+            0,
+            otherBounds.left,
+            initCanvas.getHeight(),
+          ]);
+        }
+
+        // Snap right-to-right
+        if (objectdR < snapTreshold) {
+          const rightX = otherBounds.left + otherBounds.width;
+          drawGuideLine(initCanvas, [
+            rightX,
+            0,
+            rightX,
+            initCanvas.getHeight(),
+          ]);
+          obj.left = rightX - objBounds.width;
+        }
+
+        // Snap left-to-right
+        if (
+          Math.abs(objBounds.left - (otherBounds.left + otherBounds.width)) <
+          snapTreshold
+        ) {
+          const alignX = otherBounds.left + otherBounds.width;
+          drawGuideLine(initCanvas, [
+            alignX,
+            0,
+            alignX,
+            initCanvas.getHeight(),
+          ]);
+          obj.left = alignX;
+        }
+
+        // Snap right-to-left
+        if (
+          Math.abs(objBounds.left + objBounds.width - otherBounds.left) <
+          snapTreshold
+        ) {
+          const alignX = otherBounds.left;
+          drawGuideLine(initCanvas, [
+            alignX,
+            0,
+            alignX,
+            initCanvas.getHeight(),
+          ]);
+          obj.left = alignX - objBounds.width;
+        }
+
+        // Snap top-to-top
+        if (Math.abs(objBounds.top - otherBounds.top) < snapTreshold) {
+          drawGuideLine(initCanvas, [
+            0,
+            otherBounds.top,
+            initCanvas.getWidth(),
+            otherBounds.top,
+          ]);
+          obj.top = otherBounds.top;
+        }
+
+        // Snap bottom-to-bottom
+        if (
+          Math.abs(
+            objBounds.top +
+              objBounds.height -
+              (otherBounds.top + otherBounds.height)
+          ) < snapTreshold
+        ) {
+          const y = otherBounds.top + otherBounds.height;
+          drawGuideLine(initCanvas, [0, y, initCanvas.getWidth(), y]);
+          obj.top = y - objBounds.height;
+        }
+
+        // Snap top-to-bottom
+        if (
+          Math.abs(objBounds.top - (otherBounds.top + otherBounds.height)) <
+          snapTreshold
+        ) {
+          const y = otherBounds.top + otherBounds.height;
+          drawGuideLine(initCanvas, [0, y, initCanvas.getWidth(), y]);
+          obj.top = y;
+        }
+
+        // Snap bottom-to-top
+        if (
+          Math.abs(objBounds.top + objBounds.height - otherBounds.top) <
+          snapTreshold
+        ) {
+          const y = otherBounds.top;
+          drawGuideLine(initCanvas, [0, y, initCanvas.getWidth(), y]);
+          obj.top = y - objBounds.height;
         }
       });
 
       obj.setCoords();
+    });
+
+    initCanvas.on("object:modified", () => {
+      clearGuidelnes(initCanvas);
     });
 
     setCanvas(initCanvas);
